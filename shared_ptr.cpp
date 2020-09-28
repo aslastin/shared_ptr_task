@@ -30,6 +30,3 @@ size_t control_block::get_shared_cnt() {
 size_t control_block::get_weak_cnt() {
     return weak_cnt;
 }
-
-
-

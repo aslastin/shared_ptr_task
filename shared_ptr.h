@@ -1,12 +1,10 @@
 #pragma once
-
 #include <cstddef>
 #include <type_traits>
 #include <memory>
 #include <utility>
 
 struct control_block {
-
     control_block();
 
     void release_shared();
@@ -29,7 +27,6 @@ struct control_block {
 
 template <typename Y, typename Deleter>
 struct cb_separate : control_block, Deleter {
-
     explicit cb_separate(Y* ptr, Deleter d) noexcept
         : ptr(ptr), Deleter(std::move(d))  {}
 
@@ -45,7 +42,6 @@ struct cb_separate : control_block, Deleter {
 
 template <typename Y>
 struct cb_inplace : control_block {
-
     template <typename ...Args>
     explicit cb_inplace(Args&& ...args) {
         new (&data) Y(std::forward<Args>(args)...);
@@ -69,7 +65,6 @@ struct weak_ptr;
 
 template <typename T>
 struct shared_ptr {
-
     shared_ptr() noexcept
         : ptr(nullptr), cb(nullptr) {}
 
@@ -77,14 +72,18 @@ struct shared_ptr {
         : shared_ptr() {}
 
     template<class Y>
-    shared_ptr(Y* ptr)
+    explicit shared_ptr(Y* ptr)
         : shared_ptr(ptr, std::default_delete<Y>()) {}
 
     template<class Y, class Deleter>
     shared_ptr(Y* ptr, Deleter d)
-        : ptr(ptr), cb(new cb_separate(ptr, d)) {
+    try : ptr(ptr), cb(new cb_separate<Y, Deleter>(ptr, d)) {
         cb->inc_shared();
+    } catch (...) {
+        d(ptr);
+        throw;
     }
+
 
     template<class Y>
     shared_ptr(const shared_ptr<Y>& r, T* ptr) noexcept
@@ -274,7 +273,6 @@ bool operator!=(std::nullptr_t, const shared_ptr<Y>& rhs) noexcept {
 
 template <typename T>
 struct weak_ptr {
-
     weak_ptr() noexcept
         : ptr(nullptr), cb(nullptr) {}
 
@@ -342,7 +340,7 @@ struct weak_ptr {
 
     template<class Y>
     weak_ptr& operator=(weak_ptr<Y>&& r) noexcept {
-        weak_ptr<Y>(std::move(r)).swap(*this);
+        weak_ptr(std::move(r)).swap(*this);
         return *this;
     }
 
@@ -361,7 +359,7 @@ struct weak_ptr {
         weak_ptr().swap(*this);
     }
 
-    void swap(weak_ptr& r ) noexcept {
+    void swap(weak_ptr& r) noexcept {
         using std::swap;
         swap(ptr, r.ptr);
         swap(cb, r.cb);
